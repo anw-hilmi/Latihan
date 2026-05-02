@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  CSV_URL: "MLproject/train_pca.csv"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0 # Memastikan history diambil untuk proses push
+
+      - name: Set up Python 3.12.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12.7"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install mlflow scikit-learn pandas numpy # Tambahkan library yang dibutuhkan model
+
+      - name: Run mlflow project
+        run: |
+          mlflow run MLproject --env-manager=local 
+
+      - name: Setup Git and LFS
+        run: |
+          git config --global user.name "${{ secrets.username }}"
+          git config --global user.email "${{ secrets.email }}"
+          git lfs install
+          git lfs track "mlruns/**"
+          git add .gitattributes
+
+      - name: Save mlruns to repo
+        run: |
+          git add -f mlruns/
+          git commit -m "Save mlruns from CI run [skip ci]" || echo "No changes to commit"
+          git push origin main
